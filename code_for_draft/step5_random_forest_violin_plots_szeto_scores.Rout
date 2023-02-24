@@ -1,0 +1,128 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # this code gets the side-by-side violin plots based on the scores on 
+> # test positive pairs, test negative pairs, Szeto 2021 43 pairs
+> 
+> library(ggplot2)
+Warning message:
+package ‘ggplot2’ was built under R version 4.1.2 
+> library(ggpubr)
+Warning message:
+package ‘ggpubr’ was built under R version 4.1.2 
+> library(pROC)
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+> 
+> theme_set(theme_classic())
+> 
+> results_dir = "../results/"
+> 
+> pos_random_forest_file = "st3_test_pos_random_forest.csv"
+> neg_random_forest_file = "st3_test_neg_random_forest.csv"
+> 
+> df_test_pos_sc = read.csv(paste0(results_dir, pos_random_forest_file), header = TRUE)
+> df_test_neg_sc = read.csv(paste0(results_dir, neg_random_forest_file), header = TRUE)
+> 
+> dim(df_test_pos_sc)
+[1] 1284    5
+> dim(df_test_pos_sc)
+[1] 1284    5
+> 
+> 
+> df_szeto_test_pos_sc = read.csv(paste0(results_dir, "st3_szeto_random_forest.csv"), header = TRUE)
+> 
+> dim(df_szeto_test_pos_sc)
+[1] 54  5
+> 
+> 
+> auc(c(rep(1, nrow(df_szeto_test_pos_sc)), rep(0, nrow(df_test_neg_sc))), 
++     c(df_szeto_test_pos_sc$random_forest_score, df_test_neg_sc$random_forest_score))
+Setting levels: control = 0, case = 1
+Setting direction: controls < cases
+Area under the curve: 0.6786
+> 
+> score_vec = c(df_test_pos_sc$random_forest_score, 
++               df_test_neg_sc$random_forest_score, 
++               df_szeto_test_pos_sc$random_forest_score)
+> data_set_vec = c(rep("test_pos", nrow(df_test_pos_sc)), 
++                  rep("test_neg", nrow(df_test_neg_sc)), 
++                  rep("Szeto_2020", nrow(df_szeto_test_pos_sc)))
+> 
+> df_scores = data.frame(dataset = data_set_vec, 
++                        score = score_vec)
+> 
+> 
+> df_scores$dataset = factor(df_scores$dataset, levels=c("test_pos", "test_neg", "Szeto_2020"))
+> 
+> pdf(file = "../figures/depth_draft/step5_random_forest_violin_emerson_szeto.pdf", width = 3.5, height = 2)
+> ggplot(df_scores, aes(x=dataset, y=score, color=dataset)) + 
++   xlab("data set") +
++   ylab("predicted score") + 
++   geom_violin(trim=FALSE) + 
++   theme(axis.text.x=element_blank(),
++         axis.ticks.x=element_blank(), 
++         legend.title=element_blank())
+> #+ theme(legend.position="none")
+> dev.off()
+null device 
+          1 
+> 
+> 
+> 
+> 
+> sessionInfo()
+R version 4.1.0 (2021-05-18)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Big Sur 10.16
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] pROC_1.18.0   ggpubr_0.5.0  ggplot2_3.4.0
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_1.0.9       pillar_1.8.1     compiler_4.1.0   plyr_1.8.8      
+ [5] lifecycle_1.0.3  tibble_3.1.8     gtable_0.3.1     pkgconfig_2.0.3 
+ [9] rlang_1.0.6      DBI_1.1.3        cli_3.4.1        withr_2.5.0     
+[13] dplyr_1.0.10     generics_0.1.3   vctrs_0.5.1      grid_4.1.0      
+[17] tidyselect_1.2.0 glue_1.6.2       R6_2.5.1         rstatix_0.7.1   
+[21] fansi_1.0.3      carData_3.0-5    purrr_0.3.5      tidyr_1.2.1     
+[25] farver_2.1.1     car_3.1-1        magrittr_2.0.3   scales_1.2.1    
+[29] backports_1.4.1  assertthat_0.2.1 abind_1.4-5      colorspace_2.0-3
+[33] ggsignif_0.6.4   labeling_0.4.2   utf8_1.2.2       munsell_0.5.0   
+[37] broom_1.0.1     
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+  0.783   0.092   0.873 

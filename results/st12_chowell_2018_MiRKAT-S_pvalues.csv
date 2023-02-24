@@ -1,0 +1,6 @@
+,no_covariate,age+log_mutcnt+drug_class
+dist_DePTH_cor,0.103906171,0.203150414
+dist_CLAIRE_cor,0.859947096,0.932462063
+dist_AA,0.224609635,0.269552276
+dist_DePTH_breadth,0.011423552,0.012654995
+dist_CLAIRE_breadth,0.731152548,0.844014673

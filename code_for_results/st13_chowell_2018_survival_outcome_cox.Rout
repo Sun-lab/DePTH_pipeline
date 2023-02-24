@@ -1,0 +1,293 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # cox regression for the association between survival outcome
+> # and HLA-I heterozygosity metrics
+> # based on Chowell 2018 subjects with HLA-I alleles that each either is or
+> # can be matched to one of the 85 Emerson HLA-I alleles with pseudo sequences
+>
+> library(readxl)
+Warning message:
+package ‘readxl’ was built under R version 4.1.2
+> library(survival)
+Warning message:
+package ‘survival’ was built under R version 4.1.2
+> library(survminer)
+Loading required package: ggplot2
+Loading required package: ggpubr
+
+Attaching package: ‘survminer’
+
+The following object is masked from ‘package:survival’:
+
+    myeloma
+
+Warning messages:
+1: package ‘ggplot2’ was built under R version 4.1.2
+2: package ‘ggpubr’ was built under R version 4.1.2
+> library(ggplot2)
+> library(ggpubr)
+> library(stringr)
+Warning message:
+package ‘stringr’ was built under R version 4.1.2
+> theme_set(theme_bw())
+>
+>
+> df_2018_kept = read.csv("../results/st11_chowell_2018_depth_glazer_aa_set_breadth.csv", header = TRUE)
+> dim(df_2018_kept)
+[1] 1443   23
+> colSums(is.na(df_2018_kept))
+                         ID                         age
+                          0                        1086
+                  age_group                   os_months
+                          0                           0
+                   os_event                      mutcnt
+                          0                          58
+                     gender                  drug_class
+                          0                           0
+                cancer_type                     stage_m
+                          0                           0
+                      stage                   reference
+                          0                           0
+        hla_class_i_alleles                  homozygous
+                          0                           0
+hla_class_i_alleles_replace                   depth_ave
+                          0                           0
+                 glazer_ave                      aa_ave
+                          0                           0
+                 log_mutcnt               depth_set_ave
+                         58                           0
+             glazer_set_ave               depth_breadth
+                          0                           0
+             glazer_breadth
+                          0
+>
+> table(df_2018_kept$gender)
+
+        F    M
+1086  141  216
+> table(df_2018_kept$drug_class)
+
+         Combo         CTLA-4  CTLA-4 + PD-1           PD-1     PD-1/PDL-1
+           171            218              3            189            857
+         PD-L1 PD-L1 + CTLA-4
+             1              4
+> table(df_2018_kept$cancer_type)
+
+                                                   Adrenocortical Carcinoma
+                                    2                                    12
+                  Ampullary Carcinoma                           Anal Cancer
+                                    1                                     6
+                       Bladder Cancer                           Bone Cancer
+                                   84                                     6
+                        Breast Cancer             Cancer of Unknown Primary
+                                   26                                    25
+                    Colorectal Cancer                       Embryonal Tumor
+                                   40                                     1
+               Esophagogastric Cancer Gastrointestinal Neuroendocrine Tumor
+                                   29                                     2
+       Gastrointestinal Stromal Tumor                                Glioma
+                                    2                                    76
+                 Head and Neck Cancer                  Hepatobiliary Cancer
+                                   56                                    15
+                     Hodgkin Lymphoma                              Melanoma
+                                    3                                   498
+                         Mesothelioma                  Non-Hodgkin Lymphoma
+                                    7                                    14
+           Non-Small Cell Lung Cancer                     Pancreatic Cancer
+                                  337                                    20
+                      Prostate Cancer                  Renal Cell Carcinoma
+                                   10                                   123
+                Salivary Gland Cancer                Sex Cord Stromal Tumor
+                                    1                                     1
+            Skin Cancer; Non-Melanoma                Small Cell Lung Cancer
+                                   13                                    13
+                  Soft Tissue Sarcoma                        Thyroid Cancer
+                                   14                                     6
+>
+> reset_drug_class = df_2018_kept$drug_class
+> reset_drug_class[which(reset_drug_class%in%c("PD-1/PDL-1", "PD-L1"))] = "PD-1"
+> reset_drug_class[which(reset_drug_class%in%c("CTLA-4 + PD-1", "PD-L1 + CTLA-4"))] = "Combo"
+>
+> df_2018_kept$drug_class = reset_drug_class
+> table(df_2018_kept$drug_class)
+
+ Combo CTLA-4   PD-1
+   178    218   1047
+>
+> table(df_2018_kept$reference)
+
+     Hugo et al. 2016            MSK-IMPACT      Riaz et al. 2017
+                   37                  1086                    68
+    Rizvi et al. 2015            Rizvi_CUMC    Snyder et al. 2014
+                   34                    58                    62
+Van Allen et al. 2015
+                   98
+>
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "<30")] = 1
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "31-50")] = 2
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "50-60")] = 3
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "61-70")] = 4
+> df_2018_kept$age_group[which(df_2018_kept$age_group == ">71")] = 5
+>
+> df_2018_kept$age_group = as.numeric(df_2018_kept$age_group)
+>
+> # change "" items in stage_m to NA
+> table(df_2018_kept$stage_m, useNA = "ifany")
+
+       M0  M1a  M1b  M1c
+1099   12   29   37  266
+> na_stage_m = df_2018_kept$stage_m
+> na_stage_m[which(na_stage_m=="")] = NA
+> df_2018_kept$stage_m = na_stage_m
+> table(df_2018_kept$stage_m, useNA = "ifany")
+
+  M0  M1a  M1b  M1c <NA>
+  12   29   37  266 1099
+>
+> # change "" items in stage to NA
+> table(df_2018_kept$stage, useNA = "ifany")
+
+        Stage 3 Stage 4
+   1099      12     332
+> na_stage = df_2018_kept$stage
+> na_stage[which(na_stage=="")] = NA
+> df_2018_kept$stage = na_stage
+> table(df_2018_kept$stage, useNA = "ifany")
+
+Stage 3 Stage 4    <NA>
+     12     332    1099
+>
+> # neither stage_m nor stage is used because they both have NA for
+> # a large number of subjects
+>
+> # pad df_2018_kept mutcnt to prepare for log transformation
+>
+> min(df_2018_kept$mutcnt[which(df_2018_kept$mutcnt>0)])
+[1] 0.03333333
+>
+> df_2018_kept$log_mutcnt = log10(df_2018_kept$mutcnt + 0.01)
+> summary(df_2018_kept$log_mutcnt)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's
+-2.0000  0.4713  0.7716  0.7320  1.1176  2.3898      58
+>
+>
+> # Explore association between different heterozygosity metrics and survival outcome
+>
+> # survival analysis
+>
+>
+> metrics_vec = c("homozygous", "depth_ave", "glazer_ave", "aa_ave",
++                 "depth_set_ave", "glazer_set_ave",
++                 "depth_breadth", "glazer_breadth")
+>
+> rename_vec = c("homozygous", "mean_DePTH_cor", "mean_CLAIRE_cor", "mean_AA",
++                "mean_DePTH_set", "mean_CLAIRE_set",
++                "DePTH_breadth", "CLAIRE_breadth")
+>
+> cur_matrix = matrix(NA, nrow = length(metrics_vec), 2)
+>
+> # first, without covariates
+>
+> col_i = 1
+>
+> for (i in 1:length(metrics_vec)){
++   x = metrics_vec[i]
++   y = "Surv(os_months, os_event)"
++   form = as.formula(paste(y, "~", x))
++   cur_fit = coxph(form, data = df_2018_kept)
++   cur_matrix[i, col_i] = summary(cur_fit)$coefficients[1, 5]
++ }
+>
+> # next, with all covariates
+>
+> col_i = 2
+>
+> for (i in 1:length(metrics_vec)){
++
++   x = metrics_vec[i]
++
++   y = "Surv(os_months, os_event)"
++
++   form = as.formula(paste(y, "~", x, "+ age_group + log_mutcnt + drug_class"))
++   second_column = "age+log_mutcnt+drug_class"
++
++   cur_fit = coxph(form, data = df_2018_kept)
++   cur_matrix[i, col_i] = summary(cur_fit)$coefficients[1, 5]
++
++ }
+>
+>
+> df_cur_pvalues = as.data.frame(cur_matrix)
+> colnames(df_cur_pvalues) = c("no covariate", second_column)
+> rownames(df_cur_pvalues) = rename_vec
+>
+> write.csv(df_cur_pvalues,
++           file = paste0("../results/st13_chowell_2018_survival_outcome_cox.csv"),
++           row.names = TRUE)
+>
+>
+>
+>
+>
+>
+>
+>
+> gc()
+          used  (Mb) gc trigger  (Mb) limit (Mb) max used  (Mb)
+Ncells 1965197 105.0    3840747 205.2         NA  2724371 145.5
+Vcells 3332477  25.5    8388608  64.0      65536  7465483  57.0
+>
+> sessionInfo()
+R version 4.1.0 (2021-05-18)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Big Sur 10.16
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] stringr_1.4.1   survminer_0.4.9 ggpubr_0.5.0    ggplot2_3.4.0
+[5] survival_3.4-0  readxl_1.4.1
+
+loaded via a namespace (and not attached):
+ [1] cellranger_1.1.0  pillar_1.8.1      compiler_4.1.0    tools_4.1.0
+ [5] lifecycle_1.0.3   tibble_3.1.8      gtable_0.3.1      lattice_0.20-45
+ [9] pkgconfig_2.0.3   rlang_1.0.6       Matrix_1.5-1      DBI_1.1.3
+[13] cli_3.4.1         xfun_0.35         gridExtra_2.3     knitr_1.41
+[17] withr_2.5.0       dplyr_1.0.10      survMisc_0.5.6    generics_0.1.3
+[21] vctrs_0.5.1       grid_4.1.0        tidyselect_1.2.0  data.table_1.14.6
+[25] glue_1.6.2        KMsurv_0.1-5      R6_2.5.1          rstatix_0.7.1
+[29] km.ci_0.5-6       fansi_1.0.3       carData_3.0-5     purrr_0.3.5
+[33] tidyr_1.2.1       car_3.1-1         magrittr_2.0.3    scales_1.2.1
+[37] backports_1.4.1   splines_4.1.0     assertthat_0.2.1  abind_1.4-5
+[41] xtable_1.8-4      colorspace_2.0-3  ggsignif_0.6.4    utf8_1.2.2
+[45] stringi_1.7.8     munsell_0.5.0     broom_1.0.1       zoo_1.8-11
+>
+> q(save="no")
+> proc.time()
+   user  system elapsed
+  1.320   0.128   1.443

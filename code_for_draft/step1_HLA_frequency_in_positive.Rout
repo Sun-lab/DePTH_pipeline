@@ -1,0 +1,53 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> library(ggplot2)
+Warning message:
+package ‘ggplot2’ was built under R version 4.1.2 
+> 
+> pos_file = "../data/step77_HLA_I_associated_TCR_v_alleles.csv"
+> df_pos = read.csv(pos_file, header = TRUE)
+> dim(df_pos)
+[1] 6423    3
+> head(df_pos)
+                             tcr  hla_allele association_pvalue
+1   TCRBV04-02*01,CASSQGGQSYEQYF HLA-B*07:02       7.159545e-23
+2   TCRBV04-02*01,CASSQGGQSYEQYF HLA-C*07:02       6.043354e-19
+3    TCRBV05-01*01,CASSWDKSYEQYF HLA-A*03:01       7.446680e-08
+4 TCRBV06-06*01,CASNPRGGGSNQPQHF HLA-B*07:02       9.795153e-08
+5 TCRBV06-06*01,CASNPRGGGSNQPQHF HLA-C*07:02       4.896567e-07
+6 TCRBV06-01*01,CASSEAPGPTNEKLFF HLA-A*03:01       4.462154e-09
+> 
+> df_freq = data.frame(table(df_pos$hla_allele))
+> 
+> p1 <- ggplot(df_freq, aes(x=Freq))+
++       geom_histogram(color="darkblue", fill="lightblue") + 
++       theme_classic() + xlab("freq among pos pairs")
+> 
+> pdf(file = "../figures/depth_draft/step1_freq_among_positive_pairs.pdf", width = 2.6, height = 2)
+> print(p1)
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+> dev.off()
+pdf 
+  2 
+> 
+> proc.time()
+   user  system elapsed 
+  0.623   0.090   1.091 

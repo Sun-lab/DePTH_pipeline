@@ -1,0 +1,449 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+>
+>
+> # test association with survival outcome, on Chowell 2018 subjects
+> #  -- DePTH on Zheng 2021 pos tcrs, cor (dist_DePTH_cor)
+> #  -- Glazer 2022 on Zheng 2021 pos tcrs, cor (dist_CLAIRE_cor)
+> #  -- aa blosum62 (dist_AA)
+> #  -- DePTH on Zheng 2021, set (dist_DePTH_breadth)
+> #  -- Glazer 2022 on Zheng 2021, set (dist_CLAIRE_breadth)
+>
+> library(MiRKAT)
+Warning message:
+package ‘MiRKAT’ was built under R version 4.1.2
+>
+> # load distance matrices
+>
+> df_depth_cor = read.csv("../results/st10_chowell_2018_kept_depth_ot_mat.csv", header = TRUE)
+> df_glazer_cor = read.csv("../results/st10_chowell_2018_kept_glazer_ot_mat.csv", header = TRUE)
+> df_aa = read.csv("../results/st10_chowell_2018_kept_blosum62_ot_mat.csv", header = TRUE)
+> df_depth_set = read.csv("../results/st11_chowell_2018_kept_depth_set_mat.csv", header = TRUE)
+> df_glazer_set = read.csv("../results/st11_chowell_2018_kept_glazer_set_mat.csv", header = TRUE)
+>
+> dim(df_depth_cor)
+[1] 1443 1443
+> dim(df_glazer_cor)
+[1] 1443 1443
+> dim(df_aa)
+[1] 1443 1443
+> dim(df_depth_set)
+[1] 1443 1443
+> dim(df_glazer_set)
+[1] 1443 1443
+>
+> # check whether the matrices are symmetric
+> mat_depth_cor = as.matrix(df_depth_cor)
+> mat_depth_cor_diff = abs(mat_depth_cor - t(mat_depth_cor))
+> max(mat_depth_cor_diff)
+[1] 1.387779e-17
+>
+> mat_glazer_cor = as.matrix(df_glazer_cor)
+> mat_glazer_cor_diff = abs(mat_glazer_cor - t(mat_glazer_cor))
+> max(mat_glazer_cor_diff)
+[1] 4.440892e-16
+>
+> mat_aa = as.matrix(df_aa)
+> mat_aa_diff = abs(mat_aa - t(mat_aa))
+> max(mat_aa_diff)
+[1] 1.94289e-16
+>
+> mat_depth_set = as.matrix(df_depth_set)
+> mat_depth_set_diff = abs(mat_depth_set - t(mat_depth_set))
+> max(mat_depth_set_diff)
+[1] 0
+>
+> mat_glazer_set = as.matrix(df_glazer_set)
+> mat_glazer_set_diff = abs(mat_glazer_set - t(mat_glazer_set))
+> max(mat_glazer_set_diff)
+[1] 0
+>
+>
+>
+> df_2018_kept = read.csv("../results/st11_chowell_2018_depth_glazer_aa_set_breadth.csv", header = TRUE)
+> dim(df_2018_kept)
+[1] 1443   23
+> colSums(is.na(df_2018_kept))
+                         ID                         age
+                          0                        1086
+                  age_group                   os_months
+                          0                           0
+                   os_event                      mutcnt
+                          0                          58
+                     gender                  drug_class
+                          0                           0
+                cancer_type                     stage_m
+                          0                           0
+                      stage                   reference
+                          0                           0
+        hla_class_i_alleles                  homozygous
+                          0                           0
+hla_class_i_alleles_replace                   depth_ave
+                          0                           0
+                 glazer_ave                      aa_ave
+                          0                           0
+                 log_mutcnt               depth_set_ave
+                         58                           0
+             glazer_set_ave               depth_breadth
+                          0                           0
+             glazer_breadth
+                          0
+>
+> table(df_2018_kept$gender, useNA="ifany")
+
+        F    M
+1086  141  216
+> table(df_2018_kept$drug_class, useNA="ifany")
+
+         Combo         CTLA-4  CTLA-4 + PD-1           PD-1     PD-1/PDL-1
+           171            218              3            189            857
+         PD-L1 PD-L1 + CTLA-4
+             1              4
+> table(df_2018_kept$cancer_type, useNA="ifany")
+
+                                                   Adrenocortical Carcinoma
+                                    2                                    12
+                  Ampullary Carcinoma                           Anal Cancer
+                                    1                                     6
+                       Bladder Cancer                           Bone Cancer
+                                   84                                     6
+                        Breast Cancer             Cancer of Unknown Primary
+                                   26                                    25
+                    Colorectal Cancer                       Embryonal Tumor
+                                   40                                     1
+               Esophagogastric Cancer Gastrointestinal Neuroendocrine Tumor
+                                   29                                     2
+       Gastrointestinal Stromal Tumor                                Glioma
+                                    2                                    76
+                 Head and Neck Cancer                  Hepatobiliary Cancer
+                                   56                                    15
+                     Hodgkin Lymphoma                              Melanoma
+                                    3                                   498
+                         Mesothelioma                  Non-Hodgkin Lymphoma
+                                    7                                    14
+           Non-Small Cell Lung Cancer                     Pancreatic Cancer
+                                  337                                    20
+                      Prostate Cancer                  Renal Cell Carcinoma
+                                   10                                   123
+                Salivary Gland Cancer                Sex Cord Stromal Tumor
+                                    1                                     1
+            Skin Cancer; Non-Melanoma                Small Cell Lung Cancer
+                                   13                                    13
+                  Soft Tissue Sarcoma                        Thyroid Cancer
+                                   14                                     6
+>
+> reset_drug_class = df_2018_kept$drug_class
+> reset_drug_class[which(reset_drug_class%in%c("PD-1/PDL-1", "PD-L1"))] = "PD-1"
+> reset_drug_class[which(reset_drug_class%in%c("CTLA-4 + PD-1", "PD-L1 + CTLA-4"))] = "Combo"
+>
+> df_2018_kept$drug_class = reset_drug_class
+> table(df_2018_kept$drug_class)
+
+ Combo CTLA-4   PD-1
+   178    218   1047
+>
+> table(df_2018_kept$reference)
+
+     Hugo et al. 2016            MSK-IMPACT      Riaz et al. 2017
+                   37                  1086                    68
+    Rizvi et al. 2015            Rizvi_CUMC    Snyder et al. 2014
+                   34                    58                    62
+Van Allen et al. 2015
+                   98
+>
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "<30")] = 1
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "31-50")] = 2
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "50-60")] = 3
+> df_2018_kept$age_group[which(df_2018_kept$age_group == "61-70")] = 4
+> df_2018_kept$age_group[which(df_2018_kept$age_group == ">71")] = 5
+>
+> df_2018_kept$age_group = as.numeric(df_2018_kept$age_group)
+>
+>
+> table(df_2018_kept$stage_m, useNA = "ifany")
+
+       M0  M1a  M1b  M1c
+1099   12   29   37  266
+> table(df_2018_kept$stage, useNA = "ifany")
+
+        Stage 3 Stage 4
+   1099      12     332
+>
+>
+> # pad df_2018_kept mutcnt to prepare for log transformation
+>
+> min(df_2018_kept$mutcnt[which(df_2018_kept$mutcnt>0)])
+[1] 0.03333333
+>
+> df_2018_kept$log_mutcnt = log10(df_2018_kept$mutcnt + 0.01)
+> summary(df_2018_kept$log_mutcnt)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's
+-2.0000  0.4713  0.7716  0.7320  1.1176  2.3898      58
+>
+> colnames(df_2018_kept)
+ [1] "ID"                          "age"
+ [3] "age_group"                   "os_months"
+ [5] "os_event"                    "mutcnt"
+ [7] "gender"                      "drug_class"
+ [9] "cancer_type"                 "stage_m"
+[11] "stage"                       "reference"
+[13] "hla_class_i_alleles"         "homozygous"
+[15] "hla_class_i_alleles_replace" "depth_ave"
+[17] "glazer_ave"                  "aa_ave"
+[19] "log_mutcnt"                  "depth_set_ave"
+[21] "glazer_set_ave"              "depth_breadth"
+[23] "glazer_breadth"
+>
+>
+> table(is.na(df_2018_kept$log_mutcnt), df_2018_kept$drug_class, useNA="ifany")
+
+        Combo CTLA-4 PD-1
+  FALSE   171    218  996
+  TRUE      7      0   51
+>
+> table(is.na(df_2018_kept$log_mutcnt), df_2018_kept$cancer_type, useNA="ifany")
+
+            Adrenocortical Carcinoma Ampullary Carcinoma Anal Cancer
+  FALSE   2                       12                   1           6
+  TRUE    0                        0                   0           0
+
+        Bladder Cancer Bone Cancer Breast Cancer Cancer of Unknown Primary
+  FALSE             84           6            26                        25
+  TRUE               0           0             0                         0
+
+        Colorectal Cancer Embryonal Tumor Esophagogastric Cancer
+  FALSE                40               1                     29
+  TRUE                  0               0                      0
+
+        Gastrointestinal Neuroendocrine Tumor Gastrointestinal Stromal Tumor
+  FALSE                                     2                              2
+  TRUE                                      0                              0
+
+        Glioma Head and Neck Cancer Hepatobiliary Cancer Hodgkin Lymphoma
+  FALSE     76                   56                   15                3
+  TRUE       0                    0                    0                0
+
+        Melanoma Mesothelioma Non-Hodgkin Lymphoma Non-Small Cell Lung Cancer
+  FALSE      498            7                   14                        279
+  TRUE         0            0                    0                         58
+
+        Pancreatic Cancer Prostate Cancer Renal Cell Carcinoma
+  FALSE                20              10                  123
+  TRUE                  0               0                    0
+
+        Salivary Gland Cancer Sex Cord Stromal Tumor Skin Cancer; Non-Melanoma
+  FALSE                     1                      1                        13
+  TRUE                      0                      0                         0
+
+        Small Cell Lung Cancer Soft Tissue Sarcoma Thyroid Cancer
+  FALSE                     13                  14              6
+  TRUE                       0                   0              0
+>
+> table(df_2018_kept$stage_m, df_2018_kept$drug_class, useNA="ifany")
+
+      Combo CTLA-4 PD-1
+        171     58  870
+  M0      0     10    2
+  M1a     0     12   17
+  M1b     0     24   13
+  M1c     7    114  145
+>
+>
+> # age_group + log_mutcnt + drug_class
+> # because stage_m is missing a large number of subjects
+>
+>
+> # define a function to build feature matrix
+>
+>
+> process_mat_feature <- function(cur_mat, cur_df, cur_features){
++
++     stopifnot(nrow(cur_mat)==nrow(cur_df))
++
++     temp_df = cur_df[, cur_features]
++
++     cur_rows = which(rowSums(is.na(temp_df))==0)
++
++     output_mat = cur_mat[cur_rows, cur_rows]
++
++     nonan_df = temp_df[cur_rows, ]
++     output_df = cur_df[cur_rows, ]
++
++     len_features = length(cur_features)
++
++     output_features = c()
++
++
++     for (i in 1:len_features){
++
++         ft = cur_features[i]
++
++         if (class(nonan_df[[ft]])=="character"){
++
++           uni_values = unique(nonan_df[[ft]])
++
++           if (length(uni_values)>1){
++
++             for (j in 2:length(uni_values)){
++
++                 output_features = cbind(output_features,
++                                         as.numeric(nonan_df[[ft]]==uni_values[j]))
++             }
++           }
++         }else{
++
++           output_features = cbind(output_features,
++                                   nonan_df[[ft]])
++         }
++     }
++
++    output_list = list()
++    output_list[["mat"]] = output_mat
++    output_list[["X"]] = output_features
++    output_list[["surv"]] = output_df
++
++
++    return(output_list)
++
++ }
+>
+>
+>
+> mat_list = list()
+> mat_list[["dist_DePTH_cor"]] = as.matrix(df_depth_cor)
+> mat_list[["dist_CLAIRE_cor"]] = as.matrix(df_glazer_cor)
+> mat_list[["dist_AA"]] = as.matrix(df_aa)
+> mat_list[["dist_depth_breadth"]] = as.matrix(df_depth_set)
+> mat_list[["dist_CLAIRE_breadth"]] = as.matrix(df_glazer_set)
+>
+> matrix_names = names(mat_list)
+>
+> wo_vec = rep(NA, 5)
+> w_vec = rep(NA, 5)
+>
+> feature_vec = c("age_group", "log_mutcnt", "drug_class")
+>
+>
+> for (i in 1:5){
++
++   name_i = matrix_names[i]
++   mat_i = mat_list[[name_i]]
++   k_i = D2K(mat_i)
++
++   wo_vec[i] = MiRKATS(Ks = k_i,
++                       obstime = df_2018_kept$os_months,
++                       delta = df_2018_kept$os_event)$p_values
++
++ }
+>
+> wo_vec
+[1] 0.10390617 0.85994710 0.22460964 0.01142355 0.73115255
+>
+>
+> for (i in 1:5){
++
++   name_i = matrix_names[i]
++   mat_i = mat_list[[name_i]]
++   list_i = process_mat_feature(mat_i, df_2018_kept, feature_vec)
++   k_i = D2K(list_i[["mat"]])
++
++   w_vec[i] = MiRKATS(Ks = k_i,
++                      obstime = list_i[["surv"]]$os_months,
++                      delta = list_i[["surv"]]$os_event,
++                      X = list_i[["X"]])$p_values
++
++ }
+>
+> w_vec
+[1] 0.2031504 0.9324621 0.2695523 0.0126550 0.8440147
+>
+>
+>
+> df_pvalues = data.frame(wo_covariate = wo_vec,
++                         w_covariates = w_vec)
+>
+> colnames(df_pvalues) = c("no_covariate", "age+log_mutcnt+drug_class")
+> row.names(df_pvalues) = matrix_names
+>
+> df_pvalues
+                    no_covariate age+log_mutcnt+drug_class
+dist_DePTH_cor        0.10390617                 0.2031504
+dist_CLAIRE_cor       0.85994710                 0.9324621
+dist_AA               0.22460964                 0.2695523
+dist_depth_breadth    0.01142355                 0.0126550
+dist_CLAIRE_breadth   0.73115255                 0.8440147
+>
+> write.csv(df_pvalues,
++           file = "../results/st12_chowell_2018_MiRKAT-S_pvalues.csv",
++           row.names = TRUE)
+>
+> gc()
+           used  (Mb) gc trigger   (Mb) limit (Mb)  max used   (Mb)
+Ncells  2950818 157.6    8036501  429.2         NA   6613156  353.2
+Vcells 52377506 399.7  136510718 1041.5      65536 136510234 1041.5
+>
+> sessionInfo()
+R version 4.1.0 (2021-05-18)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Big Sur 10.16
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] MiRKAT_1.2.2
+
+loaded via a namespace (and not attached):
+ [1] mixtools_1.2.0      statmod_1.4.37      tidyselect_1.2.0
+ [4] kernlab_0.9-31      splines_4.1.0       lattice_0.20-45
+ [7] colorspace_2.0-3    vctrs_0.5.1         generics_0.1.3
+[10] rmutil_1.1.10       mgcv_1.8-41         utf8_1.2.2
+[13] survival_3.4-0      rlang_1.0.6         nloptr_2.0.3
+[16] stable_1.1.6        pillar_1.8.1        glue_1.6.2
+[19] DBI_1.1.3           segmented_1.6-1     matrixStats_0.63.0
+[22] foreach_1.5.2       lifecycle_1.0.3     timeDate_4021.106
+[25] MatrixModels_0.5-1  munsell_0.5.0       fBasics_4021.93
+[28] gtable_0.3.1        timeSeries_4021.105 statip_0.2.3
+[31] codetools_0.2-18    permute_0.9-7       SparseM_1.81
+[34] modeest_2.4.0       quantreg_5.94       parallel_4.1.0
+[37] fansi_1.0.3         Rcpp_1.0.9          scales_1.2.1
+[40] PearsonDS_1.2.3     vegan_2.6-4         lme4_1.1-31
+[43] ggplot2_3.4.0       dplyr_1.0.10        ggrepel_0.9.2
+[46] CompQuadForm_1.4.3  clue_0.3-63         GUniFrac_1.7
+[49] grid_4.1.0          stabledist_0.7-1    cli_3.4.1
+[52] tools_4.1.0         magrittr_2.0.3      tibble_3.1.8
+[55] cluster_2.1.4       ape_5.6-2           spatial_7.3-15
+[58] pkgconfig_2.0.3     MASS_7.3-58.1       Matrix_1.5-1
+[61] minqa_1.2.5         assertthat_0.2.1    iterators_1.0.14
+[64] boot_1.3-28.1       rpart_4.1.19        R6_2.5.1
+[67] nlme_3.1-160        compiler_4.1.0
+> q(save="no")
+> proc.time()
+   user  system elapsed
+310.452   1.479 311.967
