@@ -114,7 +114,15 @@ st13:
 
 Flow chart for files related to MiRKAT-S and cox regressiom:
 
+```bash
                           st4 (DePTH) -->
-                          st5 (AA)    -->| --> st10(chowell2018 part of metrics)  -> st12  MiRKAT-S
-  st6 --> st7 --> st8 --> st9 (CLAIRE)-->      st11(chowell2018 part of metrics)     st13  cox regression
-   |---------------------------------------------------------------------->
+                          st5 (AA)    -->| --> st10(chowell2018 1st part of metrics)  -> st12  MiRKAT-S
+  st6 --> st7 --> st8 --> st9 (CLAIRE)-->      st11(chowell2018 2nd part of metrics)     st13  cox regression
+   |---------------------------------------------------------------------------------------^
+```
+
+st14:
+
+   st14_DePTH_full_mcpas_single_AUCs.ipynb
+
+   prepare result files needed for plotting the comparison between DePTH McPAS (one single model, instead of ensemble) and CLAIRE (Glazer et al. 2022) model.
