@@ -1,0 +1,437 @@
+
+---
+title: "Add cancer reactive gene signature information for CD8+ T cells"
+author: "Wei Sun"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+  df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 80)
+```
+
+# Setup
+
+## Load R libraries
+```{r libs, include=FALSE}
+library(data.table)
+library(Matrix)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(readxl)
+library(GSVA)
+
+library(SingleCellExperiment)
+library(scater)
+library(scran)
+library(cluster)
+library(bluster)
+library(svd)
+library(Rtsne)
+library(ggcorrplot)
+
+theme_set(theme_minimal())
+```
+
+# Check data
+
+## Read in meta data
+
+```{r}
+data_dir = "../data/Zheng_2021/"
+
+meta = fread(paste0(data_dir, "GSE156728/GSE156728_metadata.txt.gz"))
+dim(meta)
+meta[1:5,]
+
+table(meta$meta.cluster)
+table(meta$loc)
+table(meta$platform)
+table(meta$cancerType)
+
+table(meta$platform, meta$loc)
+table(meta$platform, meta$cancerType)
+```
+
+Keep those cells from 10X
+```{r}
+w2kp = which(meta$platform == "10X")
+meta = meta[w2kp,]
+dim(meta)
+anyDuplicated(meta$cellID)
+
+table(meta$loc)
+table(meta$platform)
+table(meta$cancerType)
+```
+
+## Read in TCR data
+```{r}
+tcr = fread(paste0(data_dir, "GSE156728/GSE156728_10X_VDJ.merge.txt.gz"))
+dim(tcr)
+tcr[1:2,]
+
+table(tcr$is_cell)
+table(tcr$high_confidence)
+table(tcr$chain)
+table(tcr$full_length)
+table(tcr$productive)
+table(tcr$productive, tcr$cdr3=="None")
+table(tcr$full_length, tcr$productive)
+
+table(tcr$chain,tcr$productive)
+```
+
+### Filter and summarize TCR data
+Keep those productive TCRs, check CDR3 length, and the overlap of TCR data with gene expression data. Each record is one TCR chain and thus many cells have two or multiple records. 
+
+```{r}
+tcr = tcr[tcr$productive == "True",]
+dim(tcr)
+
+ggplot(tcr, aes(x=length))+
+  geom_histogram(color="darkblue", fill="lightblue")
+
+tcr[,`:=`(cdr3_length = nchar(tcr$cdr3))]
+
+tb1 = table(tcr$cdr3_length)
+tb1 = as.data.frame(tb1)
+tb1$Relative_Freq = tb1$Freq/sum(tb1$Freq)
+names(tb1)[1] = "CDR3_length"
+
+ggplot(tb1, aes(x=CDR3_length, y=Relative_Freq)) + 
+  geom_bar(stat="identity", color="black", fill="lightblue")
+
+tcr[,`:=`(key = paste(library.id, barcode, sep=":"))]
+meta[,`:=`(key = paste(libraryID, cellID, sep=":"))]
+
+table(tcr$key %in% meta$key)
+table(meta$key %in% tcr$key)
+table(table(tcr$key))
+```
+
+### Filter TCR data
+
+Remove those with ```chain = 'multi'```, since they have VDJC genes as a mixture from multiple chains. Then generate a ```tcr_beta``` to only keep one beta chain per cell, with cdr3 length from 12 to 16, and cdr3 starts with C and ends with F. If one cell has multiple beta chain, choose the one with largest ```umis```.
+
+```{r}
+table(tcr$chain)
+tcr[tcr$chain == "Multi",][1:2,]
+tcr = tcr[tcr$chain != 'Multi',]
+dim(tcr)
+
+table(tcr$chain)
+tcr_beta = tcr[tcr$chain == "TRB"]
+dim(tcr_beta)
+
+tcr_beta = tcr_beta[which(tcr_beta$cdr3_length >= 12 & 
+                            tcr_beta$cdr3_length <= 16),]
+dim(tcr_beta)
+
+tcr_beta = tcr_beta[str_sub(tcr_beta$cdr3, 1, 1)=="C",]
+dim(tcr_beta)
+
+tcr_beta = tcr_beta[str_sub(tcr_beta$cdr3, -1)=="F",]
+dim(tcr_beta)
+
+t1 = table(tcr_beta$barcode)
+table(t1)
+
+tcr_beta[tcr_beta$barcode == names(t1)[t1==6][1],]
+
+tcr_beta  = tcr_beta[order(tcr_beta$barcode, -tcr_beta$umis),]
+u_barcode = unique(tcr_beta$barcode)
+tcr_beta  = tcr_beta[match(u_barcode,tcr_beta$barcode),]
+dim(tcr_beta)
+anyDuplicated(tcr_beta$barcode)
+
+tcr_beta[tcr_beta$barcode == names(t1)[t1==6][1],]
+
+fwrite(tcr_beta, file="../data/Zheng_2021/processed/TCR_beta.txt", 
+       sep="\t")
+system("gzip -f ../data/Zheng_2021/processed/TCR_beta.txt")
+```
+
+# Use gene expression data to select tumor reactive T cells
+
+## Read in gene expression signaatures
+
+### Hanada_2022 
+These are lung cancer specific signatures.
+```{r}
+CD8_Hanada = scan(file="../data/Hanada_2022/CD8_signature.txt", 
+                  what=character(0))
+CD8_Hanada
+
+Hanada = list(CD8=gsub("(\\+|-)$", "", CD8_Hanada), 
+              CD8_sign=str_extract(CD8_Hanada, pattern="(\\+|-)$"))
+Hanada
+```
+
+### Oliveira_2021 
+Here we read the tumor-specific and virus specific DE genes for CD8 T cells.
+```{r}
+Oliveira = read_excel("../data/Oliveira_2021/41586_2021_3704_MOESM3_ESM.xlsx", 
+                      sheet="Supplementary Table 6", skip=9)
+dim(Oliveira)
+Oliveira[1:2,]
+table(Oliveira$Signature)
+
+Oliveira_tumor = Oliveira$gene[which(Oliveira$Signature== "Tumor-specific")]
+Oliveira_virus = Oliveira$gene[which(Oliveira$Signature== "Virus-specific")]
+length(Oliveira_tumor)
+length(Oliveira_virus)
+```
+
+### Lowery_2022
+Lowery et al. (2022) not only generated their own gene signatures, but also compiled a long list of signatures from other studies. Here we first check their own signatures.
+
+```{r}
+clean_list <- function(x){
+  for(i in 1:length(x)){
+    x[[i]] = as.character(na.omit(x[[i]]))
+  }
+  x
+}
+
+sig_Lowery = read_excel("../data/Lowery_2022/science.abl5447_table_s4.xlsx",
+                  sheet="Signatures from this study")
+dim(sig_Lowery)
+sig_Lowery[1:2,]
+
+Lowery = list(CD8 = sig_Lowery$NeoTCR8)
+Lowery = clean_list(Lowery)
+sapply(Lowery, length)
+
+NeoT8 = read_excel("../data/Lowery_2022/science.abl5447_table_s8.xlsx",
+                   sheet="NeoTCR8")
+
+dim(NeoT8)
+NeoT8[1:2,]
+
+table(NeoT8$avg_logFC < 0, NeoT8$p_val_adj < 0.05)
+
+table(Lowery$CD8 %in% NeoT8$Gene)
+wmat = match(Lowery$CD8, NeoT8$Gene)
+max(NeoT8$p_val_adj[wmat])
+
+w8 = NeoT8$avg_logFC < 0 & NeoT8$p_val_adj < 0.05
+
+Lowery_negative = list(CD8 = NeoT8$Gene[w8])
+sapply(Lowery_negative, length)
+```
+
+Next check the signatures from other studies
+
+```{r}
+sigs = read_excel("../data/Lowery_2022/science.abl5447_table_s4.xlsx",
+                  sheet="Published signatures")
+dim(sigs)
+sigs[1:2,]
+
+aucs = read_excel("../data/Lowery_2022/science.abl5447_table_s12.xlsx")
+dim(aucs)
+aucs[1:2,]
+
+order.train = order(aucs$`CD8 training`, decreasing=TRUE)[1:5]
+order.valid = order(aucs$`CD8 validation`, decreasing=TRUE)[1:5]
+aucs[order.train,]
+aucs[order.valid,]
+
+CD8.sigs = aucs$`Gene Signatures`[order.train[1:3]]
+
+CD8.sigs
+
+sigs_CD8 = list(Lowery.CD8.neg.99g = Lowery_negative[["CD8"]], 
+                Oliveira.TTE.100g = sigs[["Oliveira.TTE"]],
+                Yost_CD8.Exh.100g = sigs[["Yost_CD8 Exh"]],
+                Lowery.CD8.243g = Lowery$CD8)
+sigs_CD8 = clean_list(sigs_CD8)
+sapply(sigs_CD8, length)
+```
+
+## Process gene expression of CD8 T cells
+
+```{r}
+cd8T_files = list.files(paste0(data_dir, "GSE156728"), pattern="10X.CD8")
+cd8T_files
+
+for(f1 in cd8T_files){
+  d1 = fread(file.path(paste0(data_dir, "GSE156728"), f1))
+  stopifnot(anyDuplicated(names(d1)) == 0)
+
+  print(sprintf("file: %s, dimension: (%d,%d)", f1, nrow(d1), ncol(d1)))
+
+  Tcells = which(names(d1) %in% tcr_beta$barcode)
+  dT = data.matrix(d1[,..Tcells])
+  rownames(dT) = d1$V1
+  
+  print(sprintf("%d/%d cells with TCR", length(Tcells), ncol(d1)))
+
+  gs = list()
+  
+  for(s1 in names(sigs_CD8)){
+    match.gene = na.omit(match(sigs_CD8[[s1]], d1$V1))
+    print(sprintf("%s: %d/%d genes are found.",  
+                  s1, length(match.gene), length(sigs_CD8[[s1]])))
+    
+    gs[[s1]] = d1$V1[match.gene]
+  }
+  
+  sce = SingleCellExperiment(assays=list(counts=dT))
+  sce = logNormCounts(sce)
+  sce
+
+  gsva.es = gsva(counts(sce), gs, method="ssgsea", verbose=FALSE)
+
+  stopifnot(all(colnames(gsva.es) == colnames(sce)))
+  
+  # some signature genes appear multiple times
+  sig_genes = unlist(gs[-1])
+  print("the frequency of sigature genes:")
+  print(table(table(sig_genes)))
+  
+  mat1 = match(sig_genes, rownames(sce))
+  stopifnot(all(! is.na(mat1)))
+  
+  mat2 = match(Hanada$CD8[which(Hanada$CD8_sign == "+")], rownames(sce))
+  mat2 = na.omit(mat2)
+  
+  mat3 = match(Hanada$CD8[which(Hanada$CD8_sign == "-")], rownames(sce))
+  mat3 = na.omit(mat3)
+
+  mat4 = match(Oliveira_tumor, rownames(sce))
+  mat4 = na.omit(mat4)
+  
+  mat5 = match(Oliveira_virus, rownames(sce))
+  mat5 = na.omit(mat5)
+
+  print(sprintf("%d/%d genes are found for Hanada postive/negative signatures",  
+                  length(mat2), length(mat3)))
+
+  print(sprintf("%d/%d genes are found for Oliveira postive/negative signatures",  
+                  length(mat4), length(mat5)))
+
+  ave_combined = colMeans(logcounts(sce)[mat1,])
+  ave_Hanada = colMeans(logcounts(sce)[mat2,])
+  ave_Hanada_neg = colMeans(logcounts(sce)[mat3,])
+  ave_Oliveira = colMeans(logcounts(sce)[mat4,])
+  ave_Oliveira_neg = colMeans(logcounts(sce)[mat5,])
+
+  sigs = data.frame(ave_Hanada_neg, ave_Oliveira_neg, t(gsva.es)[,1], 
+                    ave_Hanada, ave_Oliveira, t(gsva.es)[,-1])
+  names(sigs)[3] = rownames(gsva.es)[1]
+  dim(sigs)
+  sigs[1:2,]
+  sigs = scale(sigs)
+  
+  gc = ggcorrplot(cor(sigs), lab = TRUE)
+  print(gc)
+  
+  unq_genes = unique(c(unlist(gs), rownames(sce)[mat2], rownames(sce)[mat3],
+                       rownames(sce)[mat4], rownames(sce)[mat5]))
+  
+  print("number of genes used for PCA:")
+  print(length(unq_genes))
+  
+  stopifnot(all(unq_genes %in% d1$V1))
+  match.gene = match(unq_genes, d1$V1)
+  
+  sce = runPCA(sce, ncomponents=20, subset_row=match.gene)
+  set.seed(100100)
+  sce = runUMAP(sce, dimred="PCA")
+  
+  clust = clusterCells(sce, use.dimred="PCA", 
+                       BLUSPARAM=NNGraphParam(cluster.fun="louvain"))
+  colData(sce)$louvain = clust
+
+  default_palette = scales::hue_pal()(length(unique(clust)))
+
+  g1 = plotUMAP(sce, colour_by=I(colData(sce)$louvain), 
+                    point_size=0.6) + 
+  guides(color = guide_legend(override.aes = list(size = 2))) + 
+  scale_color_manual(values = default_palette)
+  print(g1)
+
+  colData(sce)[["ssGSEA"]]   = colMeans(gsva.es[-1,])
+  colData(sce)[["positive"]] = rowMeans(sigs[,-(1:3)])
+  colData(sce)[["negative"]] = rowMeans(sigs[,(1:3)])
+
+  colData(sce) = cbind(colData(sce), reducedDim(sce, "UMAP"))
+  
+  df = as.data.frame(colData(sce))
+  stopifnot(ncol(df) == 7)
+  names(df)[6:7] = c("UMAP1", "UMAP2")
+    
+  g2 = ggplot(df, aes(x=louvain, y=ssGSEA, fill=louvain)) + 
+      geom_boxplot() + 
+      scale_fill_manual(values = default_palette)
+
+  g3 = ggplot(df, aes(x=louvain, y=positive, fill=louvain)) + 
+      geom_boxplot() + 
+    scale_color_manual(values = default_palette)
+
+  g4 = ggplot(df, aes(x=louvain, y=negative, fill=louvain)) + 
+      geom_boxplot() + 
+    scale_color_manual(values = default_palette)
+
+  ga1 = ggarrange(g2, g3, g4, ncol = 3, nrow = 1, legend="top", 
+                  common.legend=TRUE)
+  print(ga1)
+  
+  ssGSEA_med = tapply(df$ssGSEA, df$louvain, median)
+  
+  df2 = data.frame(louvain = as.factor(as.numeric(names(ssGSEA_med))), 
+                   ssGSEA = ssGSEA_med, 
+                   positive = tapply(df$positive, df$louvain, median), 
+                   negative = tapply(df$negative, df$louvain, median))
+  
+  g5 = ggplot(df2, aes(x=ssGSEA, y=positive, color=louvain)) + 
+      geom_point(size=3) + 
+      scale_color_manual(values = default_palette)
+
+  g6 = ggplot(df2, aes(x=positive, y=negative, color=louvain)) + 
+      geom_point(size=3) + 
+      scale_color_manual(values = default_palette)
+
+  ga2 = ggarrange(g5, g6, ncol = 2, nrow = 1, legend="top", 
+                  common.legend=TRUE)
+  print(ga2)
+
+  fnm = sprintf("../data/Zheng_2021/processed/%s.txt", 
+                gsub(".counts.txt.gz", "", f1))
+  
+  df$cell = colnames(sce)
+  fwrite(df, file=fnm, sep="\t")
+  system(sprintf("gzip -f %s", fnm))
+  
+  print(sprintf("Done with %s", f1))
+  print(date())
+  print("------------------------------------------------------------------")
+  
+}
+
+```
+
+
+# Session information
+```{r}
+gc()
+
+sessionInfo()
+```
+
+
+
