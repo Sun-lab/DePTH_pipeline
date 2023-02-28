@@ -4,6 +4,6 @@ Reynisson, B., Alvarez, B., Paul, S., Peters, B., & Nielsen, M. (2020). NetMHCpa
 
 and downloaded from software webpages:
 
-(https://services.healthtech.dtu.dk/service.php?NetMHCpan-4.1)
+https://services.healthtech.dtu.dk/service.php?NetMHCpan-4.1
  
-(https://services.healthtech.dtu.dk/service.php?NetMHCIIpan-4.0)
+https://services.healthtech.dtu.dk/service.php?NetMHCIIpan-4.0
