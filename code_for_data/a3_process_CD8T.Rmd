@@ -331,7 +331,7 @@ for(f1 in cd8T_files){
   ave_Oliveira_neg = colMeans(logcounts(sce)[mat5,])
 
   sigs = data.frame(ave_Hanada_neg, ave_Oliveira_neg, t(gsva.es)[,1], 
-                    ave_Hanada, ave_Oliveira, t(gsva.es)[,-1])
+                    ave_Hanada, ave_Oliveira, ave_combined, t(gsva.es)[,-1])
   names(sigs)[3] = rownames(gsva.es)[1]
   dim(sigs)
   sigs[1:2,]
