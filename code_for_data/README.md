@@ -27,11 +27,21 @@ Process McPAS data used by Glazer et al. 2022 for training CLAIRE model, to gene
 
 [a4_extract_TCR_CD8_for_DePTH.Rmd]
 
-[a5_convert_zheng_2021_format.ipynb]
+[a5_convert_zheng_2021_CD8_format.ipynb]
 
-[a6_prepare_zheng_2021_pairs.ipynb]
+[a6_prepare_zheng_2021_CD8_pairs.ipynb]
 
-Extract potentially cancer-related TCRs based on Zheng 2021 data and gene signatures from other studies, and prepare the input data file based on 85 HLA-I alleles from Emerson data and 10008 processed potentially cancer-related TCRs for DePTH to make prediction on.
+Extract potentially cancer-related CD8 TCRs based on Zheng 2021 data and gene signatures from other studies, and prepare the input data file based on 85 HLA-I alleles from Emerson data and 10008 processed potentially cancer-related CD8 TCRs for DePTH to make prediction on.
+
+[a3_process_CD4T.Rmd]
+
+[a4_extract_TCR_CD4_for_DePTH.Rmd]
+
+[a7_convert_zheng_2021_CD4_format.ipynb]
+
+[a8_prepare_zheng_2021_CD4_liu_2019_pairs.ipynb]
+
+Extract potentially cancer-related CD4 TCRs based on Zheng 2021 data and gene signatures from other studies, and prepare the input data file based on 141 HLA-II alleles from the intersection of processed Liu 2019 data and Emerson data and 6547 processed potentially cancer-related CD4 TCRs for DePTH to make prediction on.
 
 
 <br />  

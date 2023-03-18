@@ -1,0 +1,302 @@
+
+---
+title: "Add cancer reactive gene signature information for CD4+ T cells"
+author: "Wei Sun"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+  df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 80)
+```
+
+# Setup
+
+## Load R libraries
+```{r libs, include=FALSE}
+library(data.table)
+library(Matrix)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(readxl)
+library(GSVA)
+
+library(SingleCellExperiment)
+library(scater)
+library(scran)
+library(cluster)
+library(bluster)
+library(svd)
+library(Rtsne)
+library(ggcorrplot)
+
+theme_set(theme_minimal())
+```
+
+# Check data
+
+## Read in TCR data
+```{r}
+data_dir = "../data/Zheng_2021/"
+
+tcr_beta = fread(paste0(data_dir, "processed/TCR_beta.txt.gz"))
+dim(tcr_beta)
+tcr_beta[1:2,]
+```
+
+# Use gene expression data to select tumor reactive T cells
+
+## Read in gene expression signaatures
+
+### Hanada_2022 
+These are lung cancer specific signatures.
+```{r}
+CD4_Hanada = scan(file="../data/Hanada_2022/CD4_signature.txt", 
+                  what=character(0))
+CD4_Hanada
+
+Hanada = list(CD4=gsub("(\\+|-)$", "", CD4_Hanada),
+              CD4_sign=str_extract(CD4_Hanada, pattern="(\\+|-)$"))
+Hanada
+```
+
+### Lowery_2022
+Lowery et al. (2022) not only generated their own gene signatures, but also compiled a long list of signatures from other studies. Here we first check their own signatures.
+
+```{r}
+clean_list <- function(x){
+  for(i in 1:length(x)){
+    x[[i]] = as.character(na.omit(x[[i]]))
+  }
+  x
+}
+
+sig_Lowery = read_excel("../data/Lowery_2022/science.abl5447_table_s4.xlsx",
+                  sheet="Signatures from this study")
+dim(sig_Lowery)
+sig_Lowery[1:2,]
+
+Lowery = list(CD4 = sig_Lowery$NeoTCR4)
+Lowery = clean_list(Lowery)
+sapply(Lowery, length)
+
+NeoT4 = read_excel("../data/Lowery_2022/science.abl5447_table_s8.xlsx",
+                   sheet="NeoTCR4")
+dim(NeoT4)
+NeoT4[1:2,]
+
+table(NeoT4$avg_logFC < 0, NeoT4$p_val_adj < 0.05)
+
+table(Lowery$CD4 %in% NeoT4$Gene)
+wmat = match(Lowery$CD4, NeoT4$Gene)
+max(NeoT4$p_val_adj[wmat])
+
+w4 = NeoT4$avg_logFC < 0 & NeoT4$p_val_adj < 0.05
+
+Lowery_negative = list(CD4 = NeoT4$Gene[w4])
+sapply(Lowery_negative, length)
+```
+
+Next check the signatures from other studies
+
+```{r}
+sigs = read_excel("../data/Lowery_2022/science.abl5447_table_s4.xlsx",
+                  sheet="Published signatures")
+dim(sigs)
+sigs[1:2,]
+
+aucs = read_excel("../data/Lowery_2022/science.abl5447_table_s12.xlsx")
+dim(aucs)
+aucs[1:2,]
+
+order.train = order(aucs$`CD4 training`, decreasing=TRUE)[1:5]
+order.valid = order(aucs$`CD4 validation`, decreasing=TRUE)[1:5]
+aucs[order.train,]
+aucs[order.valid,]
+
+CD4.sigs = intersect(aucs$`Gene Signatures`[order.train], 
+                     aucs$`Gene Signatures`[order.valid])
+CD4.sigs
+
+sapply(sigs[grep("Oh.CD4", names(sigs))], function(x){length(na.omit(x))})
+
+sigs_CD4 = list(Lowery.CD4.neg.37g = Lowery_negative[["CD4"]], 
+                Jansen_Term.diff.73g = sigs[["Jansen_Term diff"]],
+                Caushi.CD4.Tfh.2.66g = sigs[["Caushi.CD4-Tfh(2)"]],
+                Oh.CD4.CXCL13.50g    = sigs[["Oh.CD4.CXCL13"]],
+                Lowery.CD4.40g = Lowery$CD4)
+sigs_CD4 = clean_list(sigs_CD4)
+sapply(sigs_CD4, length)
+```
+
+## Process gene expression of CD4 T cells
+
+```{r}
+cd4T_files = list.files(data_dir, pattern="10X.CD4")
+cd4T_files
+
+for(f1 in cd4T_files){
+  d1 = fread(file.path(data_dir, f1))
+  stopifnot(anyDuplicated(names(d1)) == 0)
+
+  print(sprintf("file: %s, dimension: (%d,%d)", f1, nrow(d1), ncol(d1)))
+
+  Tcells = which(names(d1) %in% tcr_beta$barcode)
+  dT = data.matrix(d1[,..Tcells])
+  rownames(dT) = d1$V1
+  
+  print(sprintf("%d/%d cells with TCR", length(Tcells), ncol(d1)))
+
+  gs = list()
+  
+  for(s1 in names(sigs_CD4)){
+    match.gene = na.omit(match(sigs_CD4[[s1]], d1$V1))
+    print(sprintf("%s: %d/%d genes are found.",  
+                  s1, length(match.gene), length(sigs_CD4[[s1]])))
+    
+    gs[[s1]] = d1$V1[match.gene]
+  }
+  
+  sce = SingleCellExperiment(assays=list(counts=dT))
+  sce = logNormCounts(sce)
+  sce
+
+  gsva.es = gsva(counts(sce), gs, method="ssgsea", verbose=FALSE)
+
+  stopifnot(all(colnames(gsva.es) == colnames(sce)))
+  
+  # some signature genes appear multiple times
+  sig_genes = unlist(gs[-1])
+  print("the frequency of sigature genes:")
+  print(table(table(sig_genes)))
+  
+  mat1 = match(sig_genes, rownames(sce))
+  stopifnot(all(! is.na(mat1)))
+  
+  mat2 = match(Hanada$CD4[which(Hanada$CD4_sign == "+")], rownames(sce))
+  mat2 = na.omit(mat2)
+  
+  mat3 = match(Hanada$CD4[which(Hanada$CD4_sign == "-")], rownames(sce))
+  mat3 = na.omit(mat3)
+
+  print(sprintf("%d/%d genes are found for Hanada postive/negative signatures",  
+                  length(mat2), length(mat3)))
+
+  ave_combined = colMeans(logcounts(sce)[mat1,])
+  ave_Hanada = colMeans(logcounts(sce)[mat2,])
+  ave_Hanada_neg = colMeans(logcounts(sce)[mat3,])
+
+  sigs = data.frame(ave_Hanada_neg, t(gsva.es)[,1], 
+                    ave_Hanada, ave_combined, t(gsva.es)[,-1])
+  names(sigs)[2] = rownames(gsva.es)[1]
+  dim(sigs)
+  sigs[1:2,]
+  sigs = scale(sigs)
+  
+  gc = ggcorrplot(cor(sigs), lab = TRUE)
+  print(gc)
+  
+  unq_genes = unique(c(unlist(gs), rownames(sce)[mat2], rownames(sce)[mat3]))
+  
+  print("number of genes used for PCA:")
+  print(length(unq_genes))
+  
+  stopifnot(all(unq_genes %in% d1$V1))
+  match.gene = match(unq_genes, d1$V1)
+  
+  sce = runPCA(sce, ncomponents=20, subset_row=match.gene)
+  set.seed(100100)
+  sce = runUMAP(sce, dimred="PCA")
+  
+  clust = clusterCells(sce, use.dimred="PCA", 
+                       BLUSPARAM=NNGraphParam(cluster.fun="louvain"))
+  colData(sce)$louvain = clust
+
+  default_palette = scales::hue_pal()(length(unique(clust)))
+
+  g1 = plotUMAP(sce, colour_by=I(colData(sce)$louvain), 
+                    point_size=0.6) + 
+  guides(color = guide_legend(override.aes = list(size = 2))) + 
+  scale_color_manual(values = default_palette)
+  print(g1)
+
+  colData(sce)[["ssGSEA"]]   = colMeans(gsva.es[-1,])
+  colData(sce)[["positive"]] = rowMeans(sigs[,-(1:2)])
+  colData(sce)[["negative"]] = rowMeans(sigs[,(1:2)])
+
+  colData(sce) = cbind(colData(sce), reducedDim(sce, "UMAP"))
+  
+  df = as.data.frame(colData(sce))
+  stopifnot(ncol(df) == 7)
+  names(df)[6:7] = c("UMAP1", "UMAP2")
+
+  g2 = ggplot(df, aes(x=louvain, y=ssGSEA, fill=louvain)) + 
+      geom_boxplot() + 
+      scale_fill_manual(values = default_palette)
+
+  g3 = ggplot(df, aes(x=louvain, y=positive, fill=louvain)) + 
+      geom_boxplot() + 
+    scale_color_manual(values = default_palette)
+
+  g4 = ggplot(df, aes(x=louvain, y=negative, fill=louvain)) + 
+      geom_boxplot() + 
+    scale_color_manual(values = default_palette)
+
+  ga1 = ggarrange(g2, g3, g4, ncol = 3, nrow = 1, legend="top", 
+                  common.legend=TRUE)
+  print(ga1)
+  
+  ssGSEA_med = tapply(df$ssGSEA, df$louvain, median)
+  
+  df2 = data.frame(louvain = as.factor(as.numeric(names(ssGSEA_med))), 
+                   ssGSEA = ssGSEA_med, 
+                   positive = tapply(df$positive, df$louvain, median), 
+                   negative = tapply(df$negative, df$louvain, median))
+  
+  g5 = ggplot(df2, aes(x=ssGSEA, y=positive, color=louvain)) + 
+      geom_point(size=3) + 
+      scale_color_manual(values = default_palette)
+
+  g6 = ggplot(df2, aes(x=positive, y=negative, color=louvain)) + 
+      geom_point(size=3) + 
+      scale_color_manual(values = default_palette)
+
+  ga2 = ggarrange(g5, g6, ncol = 2, nrow = 1, legend="top", 
+                  common.legend=TRUE)
+  print(ga2)
+
+  fnm = sprintf("../data/Zheng_2021/processed/%s.txt", 
+                gsub(".counts.txt.gz", "", f1))
+  
+  df$cell = colnames(sce)
+  fwrite(df, file=fnm, sep="\t")
+  system(sprintf("gzip -f %s", fnm))
+  
+  print(sprintf("Done with %s", f1))
+  print(date())
+  print("------------------------------------------------------------------")
+}
+```
+
+
+# Session information
+```{r}
+gc()
+
+sessionInfo()
+```
+
+
+

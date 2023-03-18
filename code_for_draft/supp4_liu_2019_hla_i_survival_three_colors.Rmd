@@ -1,0 +1,144 @@
+---
+title: "Liu et al. 2019 data hla i plots with survival, three colors"
+author: "Si Liu"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+  df_print: paged
+---
+
+In each group, 
+
+   first choose the quantile cutoff based on OS (no matter actual survival or censoring time), 
+   
+   in the figures, patients are colored into three groups: 
+   
+   1) OS<cutoff with event, 
+   2) OS<cutoff being censored, 
+   3) OS>=cutoff.
+   
+# Load R libraries
+
+```{r, warning = FALSE, message = FALSE}
+library(data.table)
+library(ggplot2)
+library(ggpointdensity)
+library(ggpubr)
+```
+
+
+# load data
+The data contain patient features and HLA heterozygosity metrics. 
+```{r}
+df_kept = read.csv("../results/st17_liu_2019_depth_aa_set_breadth.csv", header = TRUE)
+dim(df_kept)
+colnames(df_kept)
+
+df = data.frame(ID = df_kept$Unnamed..0, 
+                log_nonsyn_muts = log10(df_kept$nonsyn_muts), 
+                gender = df_kept$gender..Male.1..Female.0., 
+                BR = df_kept$BR, 
+                PFS = df_kept$PFS, 
+                OS = df_kept$OS, 
+                Tx = df_kept$Tx, 
+                stage = df_kept$Mstage..IIIC.0..M1a.1..M1b.2..M1c.3., 
+                progressed = df_kept$progressed, 
+                dead = df_kept$dead, 
+                type = df_kept$Primary_Type, 
+                priorCTLA4 = df_kept$priorCTLA4)
+
+df = cbind(df, df_kept[, c(colnames(df_kept))[c(48, 50:53)]])
+dim(df)
+head(df)
+
+df$priorCTLA4 = as.character(df$priorCTLA4)
+df$priorCTLA4 = factor(df$priorCTLA4, levels=c("0","1"))
+
+table(df$priorCTLA4)
+
+colnames(df)[which(colnames(df)=="aa_ave")] = "mean_AA"
+colnames(df)[which(colnames(df)=="depth_ave")] = "mean_DePTH_cor"
+colnames(df)[which(colnames(df)=="depth_set_ave")] = "mean_DePTH_set"
+colnames(df)[which(colnames(df)=="depth_breadth")] = "DePTH_breadth"
+
+metrics = c("mean_AA", "mean_DePTH_cor", "mean_DePTH_set", "DePTH_breadth")
+
+```
+
+# Figures
+
+```{r fig.width=6, fig.height=6}
+
+data_list = list()
+data_list[[1]] = df[which(df$priorCTLA4=="0"),]
+data_list[[2]] = df[which(df$priorCTLA4=="1"),]
+
+data_names = c("PD1_only", "prior_CTLA4")
+data_sizes = sapply(data_list, nrow)
+
+for (k in 1:length(data_list)){
+
+  cur_df = data_list[[k]] 
+  
+  cur_cut = median(cur_df$OS)
+  
+  cur_group = rep(NA, dim(cur_df)[1])
+
+  cur_group[which((cur_df$OS<cur_cut)&(cur_df$dead==1))] = "below_median"
+  cur_group[which((cur_df$OS<cur_cut)&(cur_df$dead==0))] = "below_median(censored)"
+  cur_group[which(cur_df$OS>=cur_cut)] = "above_median"
+  cur_df$survival_group = cur_group
+
+  # one plot for each metric
+  
+  p_list = list()
+  
+  for (i in 1:length(metrics)){
+    
+    cur_metric = metrics[i]
+    
+    p_list[[i]] = ggplot(cur_df, aes(x=log_nonsyn_muts, y=.data[[cur_metric]], color=survival_group)) +
+                  geom_point(alpha=0.6) + theme_classic() + xlab("log10_nonsyn_mut")
+  
+  }
+
+  cur_arrange = ggarrange(plotlist = p_list, ncol = 2, nrow = 2, 
+                          common.legend=TRUE, legend="right")
+  
+  fig_filename = paste0("../figures/depth_draft/supp4_HLA_I_log_nonsyn_mut_survival_scatter_", 
+                        data_names[k], ".pdf")
+  pdf(fig_filename, width = 6.5, height = 4.2)
+  print(cur_arrange)
+  dev.off()
+
+}
+```
+
+
+
+
+
+# Session information
+```{r}
+gc()
+
+sessionInfo()
+```
+
+
+
+
+
+
+
+# Reference
+
+

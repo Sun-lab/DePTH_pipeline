@@ -1,0 +1,68 @@
+Patient131
+only has one run output
+Patient131_N: DRB1*15:01 DRB1*15:02 DQA1*01:02 DQA1*01:03 DQB1*06:01 DQB1*06:02 DPA1*01:03 DPA1*02:01 DPB1*03:01 DPB1*13:01
+
+(use normal sample)
+
+------------------
+Patient143
+Patient143_N: DRB1*01:01 DRB1*01:01 DQA1*01:01 DQA1*01:01 DQB1*05:01 DQB1*05:01 DPA1*01:03 DPA1*01:03 DPB1*04:02 DPB1*104:01
+Patient143_T: DRB1*01:01 DRB1*01:01 DQA1*01:01 DQA1*01:01 DQB1*05:01 DQB1*05:01 DPA1*01:03 DPA1*01:03 DPB1*03:01 DPB1*1037:01
+
+(keep tumor sample, since this patient will be excluded due to weird DPB1 anyway)
+
+------------------
+Patient148
+Patient148_N: DRB1*07:01 DRB1*16:01 DQA1*01:02 DQA1*02:01 DQB1*03:03 DQB1*05:02 DPA1*01:03 DPA1*01:03 DPB1*03:01 DPB1*04:01
+Patient148_T: DRB1*07:01 DRB1*16:01 DQA1*01:02 DQA1*02:01 DQB1*03:03 DQB1*05:02 DPA1*01:03 DPA1*01:03 DPB1*03:01 DPB1*1231:01
+
+(keep normal sample, since otherwise the tumor sample will be excluded due to weird DPB1)
+
+------------------
+Patient179
+Patient179_N: DRB1*03:01 DRB1*04:01 DQA1*03:01 DQA1*05:01 DQB1*02:01 DQB1*03:02 DPA1*01:03 DPA1*01:03 DPB1*04:01 DPB1*04:01
+Patient179_T: DRB1*03:01 DRB1*04:01 DQA1*05:01 DQA1*05:01 DQB1*02:01 DQB1*03:457 DPA1*01:03 DPA1*01:03 DPB1*04:01 DPB1*04:01
+
+(keep tumor sample)
+
+------------------
+Patient181
+Patient181_N: DRB1*03:01 DRB1*07:01 DQA1*02:01 DQA1*05:01 DQB1*02:01 DQB1*02:02 DPA1*01:03 DPA1*01:03 DPB1*04:01 DPB1*04:02
+Patient181_T: DRB1*03:01 DRB1*07:01 DQA1*02:01 DQA1*05:01 DQB1*02:01 DQB1*02:02 DPA1*01:03 DPA1*01:03 DPB1*04:02 DPB1*126:01
+
+(keep normal sample, since otherwise the tumor sample will be excluded due to weird DPB1)
+
+------------------
+Patient189
+Patient189_N: DRB1*04:01 DRB1*08:01 DQA1*03:03 DQA1*04:01 DQB1*03:01 DQB1*04:02 DPA1*01:03 DPA1*01:03 DPB1*02:01 DPB1*04:01
+Patient189_T: DRB1*04:01 DRB1*08:77 DQA1*03:03 DQA1*04:01 DQB1*03:01 DQB1*04:02 DPA1*01:03 DPA1*01:03 DPB1*02:01 DPB1*04:01
+
+(keep tumor sample, but the result will be the same, since the weird DRB1 will be matched to the common one)
+
+------------------
+Patient31
+Patient31_N: DRB1*11:01 DRB1*13:01 DQA1*01:03 DQA1*05:05 DQB1*03:01 DQB1*06:03 DPA1*01:03 DPA1*01:03 DPB1*02:01 DPB1*04:01
+Patient31_T_M: DRB1*11:01 DRB1*13:01 DQA1*01:03 DQA1*05:48 DQB1*03:01 DQB1*06:03 DPA1*01:03 DPA1*01:03 DPB1*02:01 DPB1*04:01
+
+(keep tumor sample)
+
+------------------
+Patient49
+Patient49_N: DRB1*11:01 DRB1*14:54 DQA1*01:04 DQA1*05:05 DQB1*03:01 DQB1*05:03 DPA1*01:03 DPA1*01:03 DPB1*04:02 DPB1*16:01
+Patient49_T_M: DRB1*11:01 DRB1*14:54 DQA1*01:04 DQA1*05:05 DQB1*03:01 DQB1*05:03 DPA1*01:03 DPA1*01:03 DPB1*463:01 DPB1*968:01
+
+(keep normal sample, since otherwise the tumor sample will be excluded due to weird DPB1s)
+
+------------------
+Patient82
+Patient82_N: DRB1*11:04 DRB1*14:54 DQA1*01:04 DQA1*05:05 DQB1*03:01 DQB1*05:03 DPA1*01:03 DPA1*01:03 DPB1*02:01 DPB1*04:02
+Patient82_T_P: DRB1*11:04 DRB1*14:54 DQA1*01:04 DQA1*05:05 DQB1*03:01 DQB1*05:03 DPA1*01:03 DPA1*01:03 DPB1*04:02 DPB1*04:02
+
+(keep tumor sample)
+
+------------------
+Patient94
+Patient94_N: DRB1*11:03 DRB1*15:01 DQA1*01:02 DQA1*05:05 DQB1*03:01 DQB1*06:02 DPA1*01:03 DPA1*01:03 DPB1*02:02 DPB1*03:01
+Patient94_T_P: DRB1*11:03 DRB1*15:01 DQA1*01:02 DQA1*05:48 DQB1*03:01 DQB1*06:02 DPA1*01:03 DPA1*01:03 DPB1*02:02 DPB1*1049:01
+
+(keep normal sample, since otherwise the tumor sample will be excluded due to weird DPB1)

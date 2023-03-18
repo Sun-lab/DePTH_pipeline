@@ -1,0 +1,207 @@
+
+---
+title: "Extract TCRs based on cancer reactive gene signature information for CD4+ T cells, keep v gene part"
+author: "Wei Sun"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+  df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 80)
+```
+
+## Load R libraries
+```{r libs, include=FALSE}
+library(data.table)
+library(Matrix)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(readxl)
+
+theme_set(theme_minimal())
+```
+
+# Read in TCR data
+```{r}
+
+
+data_dir = "../data/Zheng_2021/"
+
+tcr_beta = fread(paste0(data_dir, "processed/TCR_beta.txt.gz"))
+dim(tcr_beta)
+tcr_beta[1:2,]
+```
+
+# Use gene expression data to select tumor reactive T cells
+
+```{r}
+cd4T_files = list.files(paste0(data_dir, "processed/"), 
+                        pattern="10X.CD4.txt.gz")
+cd4T_files
+
+cluster_p = cluster_n = list()
+cluster_p[["BC"]] = c(6)
+cluster_n[["BC"]] = c(1,2)
+
+cluster_p[["BCL"]] = c(5)
+cluster_n[["BCL"]] = c(3,4)
+
+cluster_p[["ESCA"]] = c(7)
+cluster_n[["ESCA"]] = c(1,2,5)
+
+cluster_p[["MM"]] = c(8)
+cluster_n[["MM"]] = c(1,6)
+
+cluster_p[["PACA"]] = c(5)
+cluster_n[["PACA"]] = c(2,3,4)
+
+cluster_p[["RC"]] = c(7)
+cluster_n[["RC"]] = c(3,5)
+
+cluster_p[["THCA"]] = c(6,8)
+cluster_n[["THCA"]] = c(1,4)
+
+cluster_p[["UCEC"]] = c(8)
+cluster_n[["UCEC"]] = c(3,4,5,6)
+
+
+TCR_pos_v = TCR_neg_v = NULL
+TCR_pos_aa = TCR_neg_aa = NULL
+
+for(f1 in cd4T_files){
+  cancer = str_extract(f1, "(?<=_)\\w+(?=_10X.CD4.txt.gz)")
+  d1 = fread(file.path(paste0(data_dir, "processed/"), f1))
+  stopifnot(anyDuplicated(d1$cell) == 0)
+  stopifnot(all(d1$cell %in% tcr_beta$barcode))
+  
+  w_pos = which(d1$louvain %in% cluster_p[[cancer]])
+  w_neg = which(d1$louvain %in% cluster_n[[cancer]])
+
+  stopifnot(length(w_pos) > 0)
+  stopifnot(length(w_neg) > 0)
+
+  TCR_pos_v = c(TCR_pos_v, tcr_beta$v_gene[match(d1$cell[w_pos], 
+                                                 tcr_beta$barcode)])
+  
+  TCR_pos_aa = c(TCR_pos_aa, tcr_beta$cdr3[match(d1$cell[w_pos], 
+                                           tcr_beta$barcode)])
+  
+  TCR_neg_v = c(TCR_neg_v, tcr_beta$v_gene[match(d1$cell[w_neg], 
+                                                 tcr_beta$barcode)])
+  
+  TCR_neg_aa = c(TCR_neg_aa, tcr_beta$cdr3[match(d1$cell[w_neg], 
+                                           tcr_beta$barcode)])
+
+  print(sprintf("%s: number of positive/negative TCRs = %d/%d.", 
+                cancer, length(w_pos), length(w_neg)))
+}
+
+length(TCR_pos_v)
+length(TCR_pos_aa)
+length(TCR_neg_v)
+length(TCR_neg_aa)
+```
+
+# reconcile those that belong to both sets
+
+```{r}
+
+TCR_pos = paste(TCR_pos_v, TCR_pos_aa, sep = ",")
+TCR_neg = paste(TCR_neg_v, TCR_neg_aa, sep = ",")
+
+tb_pos = table(TCR_pos)
+tb_neg = table(TCR_neg)
+
+df_pos = data.frame(tb_pos)
+df_neg = data.frame(tb_neg)
+
+names(df_pos) = names(df_neg) = c("tcr", "Freq")
+df_pos = df_pos[order(df_pos$Freq, decreasing = TRUE),]
+df_neg = df_neg[order(df_neg$Freq, decreasing = TRUE),]
+
+dim(df_pos)
+dim(df_neg)
+
+df_pos[1:10,]
+df_neg[1:10,]
+
+table(df_pos$Freq == 1)
+table(df_neg$Freq == 1)
+
+df_both = merge(df_pos, df_neg, by="tcr", 
+                suffixes = c("_pos","_neg"))
+dim(df_both)
+df_both[1:2,]
+
+ggplot(df_both, aes(x=log10(Freq_pos), y=log10(Freq_neg))) +
+  geom_point(alpha=0.3)
+
+table(df_both$Freq_pos > 2*df_both$Freq_neg)
+table(df_both$Freq_pos <= 2*df_both$Freq_neg)
+
+w_neg = df_both$tcr[which(df_both$Freq_pos <= 2*df_both$Freq_neg)]
+w_pos = df_both$tcr[which(df_both$Freq_pos >  2*df_both$Freq_neg)]
+
+df_pos = df_pos[-which(df_pos$tcr %in% w_neg),]
+df_neg = df_neg[-which(df_neg$tcr %in% w_pos),]
+dim(df_pos)
+dim(df_neg)
+
+table(df_pos$Freq == 1)
+table(df_neg$Freq == 1)
+
+df_all = rbind(df_pos, df_neg)
+df_all$group = rep(c("positive", "negative"), 
+                   times=c(nrow(df_pos), nrow(df_neg)))
+
+ggplot(df_all[df_all$Freq > 1,], aes(x=log10(Freq+1))) +
+  geom_histogram(color="darkblue", fill="lightblue") + 
+  facet_wrap(~group)
+```
+
+# Save TCRs
+
+Some TCRs may appear multiple times, indicating stronger evidence that they belong to certain category. Here we truncate its frequency to avoid too much influnece of individual TCR, but still keep the duplciates in certain level to retain such confidence information. 
+
+```{r}
+table(df_pos$Freq > 10)
+table(df_neg$Freq > 10)
+
+table(df_pos$Freq > 20)
+table(df_neg$Freq > 20)
+
+df_pos$Freq[which(df_pos$Freq > 20)] = 20
+df_neg$Freq[which(df_neg$Freq > 20)] = 20
+
+pos_tcr = data.frame(tcr = rep(df_pos$tcr, times=df_pos$Freq))
+neg_tcr = data.frame(tcr = rep(df_neg$tcr, times=df_neg$Freq))
+
+dim(pos_tcr)
+dim(neg_tcr)
+
+fwrite(pos_tcr, file=file.path(data_dir, "TCRs_CD4_pos_with_v_gene_weighted.csv"))
+fwrite(neg_tcr, file=file.path(data_dir, "TCRs_CD4_neg_with_v_gene_weighted.csv"))
+```
+
+
+# Session information
+```{r}
+gc()
+
+sessionInfo()
+```
+
+
+

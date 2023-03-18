@@ -63,6 +63,11 @@ But a summary of what these four notebooks do and the findings is put in:
 
 [t4_summary.md]
 
+In addition, file
+
+[t4_combine_HLA_II_AB_all_combinations.ipynb]
+
+generates a file of the pseudo sequences for 250 HLA-II alleles. The DRB alleles are directly included. For DPAB, all combinations of DPAs and DPBs are included. The DQAB, all combinations of DQA and DQB are also included. This is the version of HLA-II pseudo sequence dictionary used in DePTH v0.0.24 and it replaces the output of [t4_combine_HLA_II_AB.ipynb]. 
 
 
 # Prepare Emerson data associated TCR-HLA pairs.
