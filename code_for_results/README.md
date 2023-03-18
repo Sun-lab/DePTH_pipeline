@@ -212,9 +212,9 @@ st24:
 
 
 ```bash  
-                   |------------------> st24
+                   |-------------------> st24
 st18 --> st19 --> st20 --> st21 -->| --> st23
-          |-------------> st22 -->|
+          |-------------> st22 --->|
 ```
 
 st23 and st24 are followed by the code for plotting supplementary figures 4&5.
