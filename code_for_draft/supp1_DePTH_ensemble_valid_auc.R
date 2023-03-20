@@ -11,11 +11,13 @@ library(ggpubr)
 library(pROC)
 
 
-df_seeds = read.table("ensemble_seeds.txt", sep = "\t", header=FALSE)
+df_seeds = read.table("../cv_train_predict/ensemble_seeds.txt", 
+                      sep = "\t", 
+                      header=FALSE)
 dim(df_seeds)
 head(df_seeds)
 
-score_dir = "HLA_I_model_ensemble_prediction/"
+score_dir = "../results/predicted_scores/HLA_I_all_match_valid_ensemble/"
 
 valid_pos_list = c()
 valid_neg_list = c()
@@ -29,10 +31,10 @@ for (i in 1:100){
   
   seeds_string = paste0("_", seed_1, "_", seed_2, "_", seed_3)
   
-  df_valid_pos = read.csv(paste0(score_dir, "HLA_I_pos_valid_load", seeds_string, 
+  df_valid_pos = read.csv(paste0(score_dir, "HLA_I_all_match_pos_valid", seeds_string, 
                                  "/predicted_scores.csv"), 
                           header=TRUE)
-  df_valid_neg = read.csv(paste0(score_dir, "HLA_I_neg_valid_load", seeds_string, 
+  df_valid_neg = read.csv(paste0(score_dir, "HLA_I_all_match_neg_valid", seeds_string, 
                                  "/predicted_scores.csv"), 
                           header=TRUE)  
 
@@ -98,7 +100,7 @@ for (h in 1:4){
 
 }
 
-pdf(file = "supp1_validation_auc_ave_first_n_models.pdf", width = 6.6, height = 5.2)
+pdf(file = "../figures/depth_draft/supp1_validation_auc_ave_first_n_models.pdf", width = 6.6, height = 5.2)
 ggarrange(plotlist=p_valid_auc_shuffled, ncol=2, nrow = 2)
 dev.off()
 
