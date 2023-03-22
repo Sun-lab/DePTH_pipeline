@@ -1,0 +1,125 @@
+
+R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # for HLA-B08:01, based on the patients with known existing or not information of this HLA
+> # plot histograms of frequency of positive TCRs and that of negative TCRs
+> # overlay the two histograms
+> 
+> library(ggplot2)
+Warning message:
+package ‘ggplot2’ was built under R version 4.1.2 
+> 
+> pos_file = "../data/intermediate_data/t12_HLA_I_associated_TCR_v_alleles.csv"
+> df_pos = read.csv(pos_file, header = TRUE)
+> dim(df_pos)
+[1] 6423    3
+> head(df_pos)
+                             tcr  hla_allele association_pvalue
+1   TCRBV04-02*01,CASSQGGQSYEQYF HLA-B*07:02       7.159545e-23
+2   TCRBV04-02*01,CASSQGGQSYEQYF HLA-C*07:02       6.043354e-19
+3    TCRBV05-01*01,CASSWDKSYEQYF HLA-A*03:01       7.446680e-08
+4 TCRBV06-06*01,CASNPRGGGSNQPQHF HLA-B*07:02       9.795153e-08
+5 TCRBV06-06*01,CASNPRGGGSNQPQHF HLA-C*07:02       4.896567e-07
+6 TCRBV06-01*01,CASSEAPGPTNEKLFF HLA-A*03:01       4.462154e-09
+> 
+> df_pos_B0801 = df_pos[which(df_pos$hla_allele=="HLA-B*08:01"), ]
+> 
+> freq_file = "../data/intermediate_data/HLA_I_all_match_prepare/tcr_freq_HLA_I_1.csv"
+> df_freq = read.csv(freq_file, header = TRUE)
+> dim(df_freq)
+[1] 8164013       3
+> head(df_freq)
+       v_allele     amino_acids freq
+1 TCRBV29-01*01     CSVEESYEQYF   64
+2 TCRBV05-01*01  CASSLRGSGNTIYF   70
+3 TCRBV04-02*01 CASSQEGQSSYEQYF   25
+4 TCRBV06-04*01 CASSDSGSGGNEQFF    3
+5 TCRBV06-05*01  CASSYSGSNQPQHF  237
+6 TCRBV05-01*01    CASSPRGRGYTF    4
+> 
+> 
+> 
+> df_freq$full_tcr = paste0(df_freq$v_allele, ",", df_freq$amino_acids)
+> 
+> table(df_pos_B0801$tcr %in% df_freq$full_tcr)
+
+TRUE 
+ 878 
+> 
+> col_group = rep(NA, dim(df_freq)[1])
+> col_group[which(df_freq$full_tcr%in%df_pos_B0801$tcr)] = "pos"
+> col_group[which(!(df_freq$full_tcr%in%df_pos_B0801$tcr))] = "neg"
+> 
+> df_freq$TCR_group = col_group
+> df_freq$TCR_group = factor(df_freq$TCR_group, levels = c("pos", "neg"))
+> 
+> head(df_freq)
+       v_allele     amino_acids freq                      full_tcr TCR_group
+1 TCRBV29-01*01     CSVEESYEQYF   64     TCRBV29-01*01,CSVEESYEQYF       neg
+2 TCRBV05-01*01  CASSLRGSGNTIYF   70  TCRBV05-01*01,CASSLRGSGNTIYF       neg
+3 TCRBV04-02*01 CASSQEGQSSYEQYF   25 TCRBV04-02*01,CASSQEGQSSYEQYF       neg
+4 TCRBV06-04*01 CASSDSGSGGNEQFF    3 TCRBV06-04*01,CASSDSGSGGNEQFF       neg
+5 TCRBV06-05*01  CASSYSGSNQPQHF  237  TCRBV06-05*01,CASSYSGSNQPQHF       neg
+6 TCRBV05-01*01    CASSPRGRGYTF    4    TCRBV05-01*01,CASSPRGRGYTF       neg
+> 
+> p1 <- ggplot(df_freq,aes(x=log10(freq),fill=TCR_group))+
++       geom_histogram(aes(y=..density..), 
++                      alpha=0.5,position='identity',binwidth=0.2) + 
++       theme_classic() + xlab("log10(population frequency)") +
++       guides(fill=guide_legend(title="TCR group"))
+> 
+> pdf(file = "../figures/depth_draft/step1_tcr_population_frequency.pdf", width = 3.6, height = 2)
+> print(p1)
+Warning message:
+The dot-dot notation (`..density..`) was deprecated in ggplot2 3.4.0.
+ℹ Please use `after_stat(density)` instead. 
+> dev.off()
+null device 
+          1 
+> 
+> sessionInfo()
+R version 4.1.0 (2021-05-18)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Big Sur 10.16
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] ggplot2_3.4.0
+
+loaded via a namespace (and not attached):
+ [1] fansi_1.0.3      withr_2.5.0      assertthat_0.2.1 dplyr_1.0.10    
+ [5] utf8_1.2.2       grid_4.1.0       R6_2.5.1         DBI_1.1.3       
+ [9] lifecycle_1.0.3  gtable_0.3.1     magrittr_2.0.3   scales_1.2.1    
+[13] pillar_1.8.1     rlang_1.0.6      cli_3.4.1        farver_2.1.1    
+[17] generics_0.1.3   vctrs_0.5.1      labeling_0.4.2   glue_1.6.2      
+[21] munsell_0.5.0    compiler_4.1.0   pkgconfig_2.0.3  colorspace_2.0-3
+[25] tidyselect_1.2.0 tibble_3.1.8    
+> q(save="no")
+> proc.time()
+   user  system elapsed 
+ 36.119   0.812  36.930 

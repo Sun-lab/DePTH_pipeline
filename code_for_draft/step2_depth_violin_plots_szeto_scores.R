@@ -45,10 +45,10 @@ df_emerson_scores = data.frame(dataset = emerson_data_set_vec,
 
 df_emerson_scores$dataset = factor(df_emerson_scores$dataset, levels=c("test_pos", "test_neg", "Szeto_2020"))
 
-pdf(file = "../figures/depth_draft/step2_depth_violin_emerson_szeto.pdf", width = 3.5, height = 2)
+pdf(file = "../figures/depth_draft/step2_depth_violin_emerson_szeto.pdf", width = 4, height = 2)
 ggplot(df_emerson_scores, aes(x=dataset, y=score, color=dataset)) + 
   xlab("data set") +
-  ylab("predicted score") + 
+  ylab("prediction score") + 
   geom_violin(trim=FALSE) + 
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank(), 

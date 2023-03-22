@@ -92,7 +92,7 @@ Setting direction: controls < cases
 +       theme(legend.title=element_blank()) + 
 +       theme_classic()
 > 
-> pdf(file = "../figures/depth_draft/step6_mcpas_roc_curve.pdf", width = 4.2, height = 2)
+> pdf(file = "../figures/depth_draft/step6_mcpas_roc_curve.pdf", width = 4.45, height = 2)
 > print(p1)
 > dev.off()
 null device 
@@ -131,4 +131,4 @@ loaded via a namespace (and not attached):
 > q(save="no")
 > proc.time()
    user  system elapsed 
-  0.711   0.085   0.792 
+  0.726   0.087   0.808 

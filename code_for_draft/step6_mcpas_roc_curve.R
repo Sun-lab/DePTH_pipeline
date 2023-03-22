@@ -51,7 +51,7 @@ p1 <- ggroc(rocs, aes=c("linetype", "color"), legacy.axes = TRUE) +
       theme(legend.title=element_blank()) + 
       theme_classic()
 
-pdf(file = "../figures/depth_draft/step6_mcpas_roc_curve.pdf", width = 4.2, height = 2)
+pdf(file = "../figures/depth_draft/step6_mcpas_roc_curve.pdf", width = 4.45, height = 2)
 print(p1)
 dev.off()
 
