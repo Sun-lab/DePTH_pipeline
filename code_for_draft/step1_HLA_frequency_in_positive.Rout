@@ -1,6 +1,6 @@
 
-R version 4.1.0 (2021-05-18) -- "Camp Pontanezen"
-Copyright (C) 2021 The R Foundation for Statistical Computing
+R version 4.2.3 (2023-03-15) -- "Shortstop Beagle"
+Copyright (C) 2023 The R Foundation for Statistical Computing
 Platform: x86_64-apple-darwin17.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -19,10 +19,8 @@ Type 'q()' to quit R.
 
 > 
 > library(ggplot2)
-Warning message:
-package ‘ggplot2’ was built under R version 4.1.2 
 > 
-> pos_file = "../data/step77_HLA_I_associated_TCR_v_alleles.csv"
+> pos_file = "../data/intermediate_data/t12_HLA_I_associated_TCR_v_alleles.csv"
 > df_pos = read.csv(pos_file, header = TRUE)
 > dim(df_pos)
 [1] 6423    3
@@ -36,6 +34,93 @@ package ‘ggplot2’ was built under R version 4.1.2
 6 TCRBV06-01*01,CASSEAPGPTNEKLFF HLA-A*03:01       4.462154e-09
 > 
 > df_freq = data.frame(table(df_pos$hla_allele))
+> df_freq[order(df_freq$Freq, decreasing = TRUE), ]
+          Var1 Freq
+27 HLA-B*08:01  878
+25 HLA-B*07:02  530
+73 HLA-C*07:01  498
+1  HLA-A*01:01  359
+74 HLA-C*07:02  333
+2  HLA-A*02:01  216
+31 HLA-B*15:01  211
+38 HLA-B*35:01  192
+53 HLA-B*44:03  179
+36 HLA-B*18:01  140
+52 HLA-B*44:02  134
+77 HLA-C*08:02  133
+47 HLA-B*40:01  132
+5  HLA-A*03:01  128
+30 HLA-B*14:02  128
+70 HLA-C*04:01  119
+43 HLA-B*38:01   97
+9  HLA-A*24:02   96
+72 HLA-C*06:02   95
+69 HLA-C*03:04   91
+37 HLA-B*27:05   90
+71 HLA-C*05:01   89
+83 HLA-C*16:01   85
+23 HLA-A*68:01   84
+63 HLA-B*57:01   78
+7  HLA-A*11:01   71
+14 HLA-A*29:02   70
+28 HLA-B*13:02   64
+58 HLA-B*51:01   62
+17 HLA-A*31:01   60
+79 HLA-C*12:03   56
+40 HLA-B*35:03   51
+59 HLA-B*52:01   51
+19 HLA-A*33:01   45
+12 HLA-A*26:01   44
+64 HLA-B*58:01   39
+15 HLA-A*30:01   38
+11 HLA-A*25:01   37
+42 HLA-B*37:01   35
+16 HLA-A*30:02   33
+39 HLA-B*35:02   33
+61 HLA-B*55:01   30
+65 HLA-C*01:02   28
+41 HLA-B*35:08   25
+8  HLA-A*23:01   24
+57 HLA-B*50:01   24
+20 HLA-A*33:03   23
+24 HLA-A*68:02   22
+56 HLA-B*49:01   22
+66 HLA-C*02:02   21
+67 HLA-C*03:02   20
+18 HLA-A*32:01   18
+80 HLA-C*14:02   18
+29 HLA-B*14:01   16
+3  HLA-A*02:05   14
+45 HLA-B*39:01   14
+51 HLA-B*41:02   14
+68 HLA-C*03:03   14
+4  HLA-A*02:06   13
+48 HLA-B*40:02   13
+62 HLA-B*56:01   11
+44 HLA-B*38:02   10
+55 HLA-B*48:01   10
+81 HLA-C*15:02   10
+82 HLA-C*15:05   10
+35 HLA-B*15:18    9
+54 HLA-B*45:01    9
+75 HLA-C*07:04    8
+85 HLA-C*17:01    8
+13 HLA-A*29:01    7
+50 HLA-B*41:01    7
+76 HLA-C*08:01    7
+78 HLA-C*08:03    6
+10 HLA-A*24:03    5
+49 HLA-B*40:06    5
+34 HLA-B*15:17    4
+84 HLA-C*16:02    4
+22 HLA-A*66:01    3
+60 HLA-B*53:01    3
+21 HLA-A*34:01    2
+26 HLA-B*07:05    2
+33 HLA-B*15:07    2
+46 HLA-B*39:06    2
+6  HLA-A*03:02    1
+32 HLA-B*15:03    1
 > 
 > p1 <- ggplot(df_freq, aes(x=Freq))+
 +       geom_histogram(color="darkblue", fill="lightblue") + 
@@ -45,9 +130,9 @@ package ‘ggplot2’ was built under R version 4.1.2
 > print(p1)
 `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 > dev.off()
-pdf 
-  2 
+null device 
+          1 
 > 
 > proc.time()
    user  system elapsed 
-  0.623   0.090   1.091 
+  0.609   0.074   0.728 
